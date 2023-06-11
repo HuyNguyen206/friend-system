@@ -81,10 +81,19 @@ class User extends Authenticatable
     public function getRequestToFriendUser(int|User $value)
     {
         if (!is_int($value)) {
-            $userId = $value->id;
+            $value = $value->id;
         }
 
-        return $this->requestedToFriends()->where('users.id', $userId)->first();
+        return $this->requestedToFriends()->where('users.id', $value)->first();
+    }
+
+    public function getRequestFromFriendUser(int|User $value)
+    {
+        if (!is_int($value)) {
+            $value = $value->id;
+        }
+
+        return $this->requestedFromFriends()->where('users.id', $value)->first();
     }
 
     public function isFriend(User $user): bool
@@ -93,9 +102,14 @@ class User extends Authenticatable
            || $this->acceptedRequestedFromFriends()->where('users.id', $user->id)->exists();
     }
 
-    public function friends()
+    public function friends($withStatus = [])
     {
-        return DB::table('friends')
+        return Friend::query()
+            ->when(count($withStatus), function ($builder) use ($withStatus) {
+                $builder->with($withStatus);
+            }, function ($builder){
+                $builder->latest('friends.created_at');
+            })
             ->join('users as userSender', 'friends.sender_id', '=', 'userSender.id')
             ->join('users as userReceiver', 'friends.receiver_id', '=', 'userReceiver.id')
             ->where(function ($query){
@@ -103,19 +117,42 @@ class User extends Authenticatable
                       ->orWhere('receiver_id', $this->id);
             })
             ->where('accepted', true)
-            ->get(['userSender.id as sender_id', 'userSender.name as sender_name', 'userReceiver.id as receiver_id', 'userReceiver.name as receiver_name'])
+            ->get([
+                'userSender.id as sender_id',
+                'userSender.name as sender_name',
+                'userReceiver.id as receiver_id',
+                'userReceiver.name as receiver_name',
+            ])
             ->map(function ($friend){
                 if ($friend->sender_id !== $this->id) {
                     $data['id'] = $friend->sender_id;
                     $data['name'] = $friend->sender_name;
+                    if ($friend->relationLoaded('sender')) {
+                        $data['statuses'] = $friend->sender?->statuses;
+                    }
+
                     return (object) $data;
                 }
 
                 if ($friend->receiver_id !== $this->id) {
                     $data['id'] = $friend->receiver_id;
                     $data['name'] = $friend->receiver_name;
+                    if ($friend->relationLoaded('receiver')) {
+                        $data['statuses'] = $friend->receiver?->statuses;
+                    }
+
                     return (object) $data;
                 }
+            })->sortByDesc(function ($f){
+                if (property_exists($f, 'statuses')) {
+                    return $f->statuses->max('created_at');
+                }
+                return  0;
             });
+    }
+
+    public function statuses()
+    {
+        return $this->hasMany(Status::class);
     }
 }

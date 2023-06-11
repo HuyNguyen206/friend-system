@@ -24,11 +24,25 @@ class FriendController extends Controller
 
     public function store(Request $request, User $user)
     {
+        if ($request->user()->id === $user->id) {
+            abort(400, 'You can send request friend to yourself!');
+        }
+
         if ($friend = $request->user()->getRequestToFriendUser($user->id)) {
             if ($friend->pivot->accepted) {
                 $message = 'You already are friend with this person';
             } else {
                 $message = 'You already send friend request to this person';
+            }
+
+            abort(400, $message);
+        }
+
+        if ($friend = $request->user()->getRequestFromFriendUser($user->id)) {
+            if ($friend->pivot->accepted) {
+                $message = 'You already are friend with this person';
+            } else {
+                $message = 'This person already send friend request to you';
             }
 
             abort(400, $message);

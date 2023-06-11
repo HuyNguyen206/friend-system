@@ -7,9 +7,19 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    {{ __("You're logged in!") }}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <h1 class="text-2xl font-semibold my-2">Status's friend</h1>
+                <div class="text-gray-900">
+                    @foreach($statusFriends as $statusFriend)
+                        <h2 class="text-xl my-2">{{$statusFriend->name}}</h2>
+                        <ul class="max-w-md space-y-1 text-gray-500 list-disc list-inside dark:text-gray-400 mb-3">
+                            @foreach($statusFriend->statuses as $status)
+                                <li>
+                                    {{$status->body}}
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endforeach
                 </div>
             </div>
         </div>
